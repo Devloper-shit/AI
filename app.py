@@ -6,88 +6,12 @@ import pandas as pd
 import traceback
 import io
 from streamlit_option_menu import option_menu
+import json
 
 # -----------------------------
 # 1. CONFIGURATION
 # -----------------------------
 st.set_page_config(page_title="Cambridge Portal", page_icon="🏫", layout="wide")
-
-# Minimal CSS – No animations, clean dark theme
-st.markdown("""
-<style>
-/* Overall */
-body {
-    background-color: #0f172a;
-    color: #e2e8f0;
-}
-.main {
-    background-color: transparent;
-}
-
-/* Sidebar */
-section[data-testid="stSidebar"] {
-    background-color: #1e293b;
-    border-right: 1px solid #334155;
-}
-section[data-testid="stSidebar"] * {
-    color: #cbd5e1 !important;
-}
-
-/* Cards */
-div[data-testid="stVerticalBlock"] > div {
-    background: #1e293b;
-    border-radius: 10px;
-    border: 1px solid #334155;
-    padding: 20px;
-    margin-bottom: 16px;
-}
-
-/* Buttons */
-.stButton > button {
-    background-color: #3b82f6;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    padding: 8px 20px;
-    font-weight: 600;
-}
-.stButton > button:hover {
-    background-color: #2563eb;
-}
-
-/* Inputs */
-.stTextInput input, .stNumberInput input, .stSelectbox select {
-    background-color: #1e293b !important;
-    border: 1px solid #475569 !important;
-    border-radius: 6px !important;
-    color: white !important;
-}
-
-/* Tables */
-.stTable tbody tr:nth-child(even) {
-    background-color: #1e293b;
-}
-.stTable tbody tr:hover {
-    background-color: #334155;
-}
-
-/* Metric Cards */
-[data-testid="metric-container"] {
-    background: #1e293b;
-    border: 1px solid #334155;
-    border-radius: 10px;
-    padding: 16px;
-}
-[data-testid="metric-container"] label {
-    color: #94a3b8;
-    font-size: 13px;
-}
-[data-testid="metric-container"] div[data-testid="stMetricValue"] {
-    color: #fbbf24;
-    font-weight: 700;
-}
-</style>
-""", unsafe_allow_html=True)
 
 # -----------------------------
 # 2. LOGIN
@@ -97,10 +21,10 @@ if "authenticated" not in st.session_state:
     st.session_state["role"] = None
 
 if not st.session_state["authenticated"]:
-    _, center, _ = st.columns([1,2,1])
+    _, center, _ = st.columns([1, 2, 1])
     with center:
         st.markdown("<br><br>", unsafe_allow_html=True)
-        st.markdown("<h2 style='text-align:center; color:#fbbf24;'>Cambridge International</h2>", unsafe_allow_html=True)
+        st.markdown("<h2 style='text-align:center; color:#1a3b5d;'>Cambridge International</h2>", unsafe_allow_html=True)
         role = st.selectbox("Select Role", ["Teacher", "Clerk", "Principal"])
         pwd = st.text_input("Password", type="password")
         if st.button("Login"):
@@ -117,23 +41,26 @@ if not st.session_state["authenticated"]:
     st.stop()
 
 # -----------------------------
-# 3. DATABASE CONNECTION
+# 3. DATABASE CONNECTION (SECRETS ONLY)
 # -----------------------------
-# ⚡ APNI SHEET ID YAHAN DAALO
-SHEET_ID = "d/1-U9d-zMbo7g6_qoQY_trLkZNRpwTK1Em7Q982Hmx5RA/edit?gid=0#gid=0"
+SHEET_ID = "1-U9d-zMbo7g6_qoQY_trLkZNRpwTK1Em7Q982Hmx5RA"
 
 @st.cache_resource
 def get_workbook():
     try:
-        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-        if "gcp_service_account" in st.secrets:
-            creds = ServiceAccountCredentials.from_json_keyfile_dict(dict(st.secrets["gcp_service_account"]), scope)
-        else:
-            creds = ServiceAccountCredentials.from_json_keyfile_name("service_account.json", scope)
+        if "gcp_creds" not in st.secrets:
+            st.error("❌ Streamlit Secrets missing 'gcp_creds' string.")
+            return None
+        creds_dict = json.loads(st.secrets["gcp_creds"])
+        scope = [
+            "https://spreadsheets.google.com/feeds",
+            "https://www.googleapis.com/auth/drive"
+        ]
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
         client = gspread.authorize(creds)
         return client.open_by_key(SHEET_ID)
     except Exception as e:
-        st.error(f"Connection Error: {e}")
+        st.error(f"❌ Connection failed: {e}")
         return None
 
 wb = get_workbook()
@@ -155,15 +82,13 @@ def find_sheet(name):
         if name_clean in n.lower(): return wb.worksheet(n)
     return None
 
-# Extract class names from master sheets (e.g., "MASTER_LKG" -> "LKG")
 def get_available_classes():
     sheets = get_sheet_names()
     classes = []
     for s in sheets:
         if s.upper().startswith("MASTER_"):
             class_name = s.split("_", 1)[1].strip()
-            if class_name:
-                classes.append(class_name)
+            if class_name: classes.append(class_name)
     return sorted(classes) if classes else ["LKG"]
 
 @st.cache_data(ttl=600)
@@ -174,7 +99,6 @@ def load_master_data(class_name):
     if len(raw) < 2: return pd.DataFrame(), []
     headers = [h.strip() for h in raw[0]]
     df = pd.DataFrame(raw[1:], columns=headers)
-    # Find ID and Name columns (case‑insensitive)
     id_col = next((c for c in df.columns if c.upper() in ['ID', 'STUDENT ID', 'STUDENT_ID']), None)
     name_col = next((c for c in df.columns if c.upper() in ['NAME', 'STUDENT NAME']), None)
     student_list = []
@@ -206,7 +130,7 @@ def load_fee_structure():
     return fee_map
 
 # -----------------------------
-# 5. SIDEBAR – All navigation
+# 5. SIDEBAR
 # -----------------------------
 with st.sidebar:
     st.header("Administration")
@@ -220,7 +144,7 @@ with st.sidebar:
         menu_options = ["Student Attendance", "Attendance Report", "Student Records", "Edit Student Details", "Add New Student", "At-Risk Students"]
     elif role == "Clerk":
         menu_options = ["Fee Collection", "Daily Cash Report", "Defaulter List", "Add New Student", "Student Records"]
-    else:  # Principal
+    else:
         menu_options = ["Executive Dashboard", "Student Attendance", "Attendance Report", "Fee Collection", "Daily Cash Report", "Defaulter List", "Student Records", "Edit Student Details", "Add New Student", "At-Risk Students"]
 
     icons = {
@@ -233,10 +157,10 @@ with st.sidebar:
     menu = option_menu(None, menu_options, [icons.get(o,"circle") for o in menu_options],
         menu_icon="cast", default_index=0,
         styles={
-            "container": {"background-color": "#1e293b"},
+            "container": {"background-color": "#0f172a"},
             "icon": {"color": "#fbbf24"},
-            "nav-link": {"--hover-color": "#334155"},
-            "nav-link-selected": {"background-color": "#3b82f6"},
+            "nav-link": {"--hover-color": "#1e293b", "color": "#e2e8f0"},
+            "nav-link-selected": {"background-color": "#1e3a5f"},
         }
     )
 
@@ -259,7 +183,6 @@ fees_data = load_fees_data(selected_class)
 monthly_fee_map = load_fee_structure()
 default_fee = monthly_fee_map.get(selected_class, 500)
 
-# Get sheet objects
 master_sheet = find_sheet(f"MASTER_{selected_class}")
 attendance_sheet = find_sheet(f"ATTENDANCE_{selected_class}")
 fees_sheet = find_sheet(f"FEES_{selected_class}")
@@ -267,20 +190,18 @@ if not all([master_sheet, attendance_sheet, fees_sheet]):
     st.error("Required sheets missing.")
     st.stop()
 
-# Utility: Ensure a column exists in master (add if not)
 def ensure_column(sheet, col_name):
     headers = sheet.row_values(1)
     if col_name not in headers:
         sheet.update_cell(1, len(headers)+1, col_name)
         st.cache_data.clear()
 
-# Ensure Total_Fees column exists (column G traditionally)
 ensure_column(master_sheet, "Total_Fees")
 
 # -----------------------------
 # 7. BRANDING
 # -----------------------------
-st.markdown("<h2 style='text-align:center; color:#fbbf24;'>CAMBRIDGE INTERNATIONAL</h2>", unsafe_allow_html=True)
+st.markdown("<h2 style='text-align:center; color:#1a3b5d;'>CAMBRIDGE INTERNATIONAL</h2>", unsafe_allow_html=True)
 st.divider()
 
 # =============================
@@ -331,7 +252,6 @@ if menu == "Executive Dashboard" and role == "Principal":
         col3.metric("Today Fees", f"₹{today_fees}")
         col4.metric("Month Fees", f"₹{month_col} ({col_pct:.0f}%)")
 
-        # Top Defaulters
         if not df_master.empty and 'Total_Fees' in df_master.columns:
             def calc(row):
                 paid = int(row['Total_Fees']) if str(row['Total_Fees']).isdigit() else 0
@@ -340,7 +260,7 @@ if menu == "Executive Dashboard" and role == "Principal":
                 expected = months * monthly_fee
                 return max(0, expected - paid)
             df_master['Outstanding'] = df_master.apply(calc, axis=1)
-            top5 = df_master.nlargest(5, 'Outstanding')[['Name', 'Outstanding']] if 'Name' in df_master.columns else df_master.nlargest(5, 'Outstanding').iloc[:,:2]
+            top5 = df_master.nlargest(5, 'Outstanding')[['NAME', 'Outstanding']] if 'NAME' in df_master.columns else df_master.nlargest(5, 'Outstanding').iloc[:,:2]
         else:
             top5 = pd.DataFrame()
         st.write("**Top 5 Defaulters**")
@@ -348,7 +268,7 @@ if menu == "Executive Dashboard" and role == "Principal":
         else: st.write("No data")
 
 # =============================
-# 9. STUDENT ATTENDANCE (same logic, adapted for any class)
+# 9. STUDENT ATTENDANCE
 # =============================
 elif menu == "Student Attendance":
     st.subheader(f"Daily Attendance – {selected_class}")
@@ -470,7 +390,6 @@ elif menu == "Fee Collection":
             try:
                 mc = master_sheet.find(sid)
                 mr = master_sheet.row_values(mc.row)
-                # Total_Fees is in column G (index 6). Ensure it exists.
                 cur = 0
                 if len(mr) >= 7 and str(mr[6]).isdigit(): cur = int(mr[6])
                 st.info(f"**Student:** {mr[1]} | **Paid:** ₹{cur}")
@@ -480,7 +399,6 @@ elif menu == "Fee Collection":
                     mode = st.selectbox("Mode", ["Cash","Online","Cheque"])
                     if st.form_submit_button("Process Payment"):
                         new = cur + amt
-                        # Update/ensure Total_Fees column
                         master_sheet.update_cell(mc.row, 7, str(new))
                         ts = datetime.now().strftime("%d-%m-%Y %H:%M")
                         fees_sheet.insert_row([sid, amt, mo, f"{ts} {mode}"], index=2)
@@ -561,12 +479,11 @@ elif menu == "Student Records":
             if mask.any():
                 sd = df_master[mask].iloc[0]
                 name = sd.get(name_col,'')
-                roll = sd.get('Roll No','')
-                father = sd.get('FATHER','') or sd.get('Father','')
+                roll = sd.get('ROLL NO','')
+                father = sd.get('FATHER','') or sd.get('FATHER NAME','')
                 mobile = sd.get('MOBILE','')
-                # Total fees
                 total = sd.get('Total_Fees','0')
-                addr = sd.get('Address','N/A')
+                addr = sd.get('ADDRESS','N/A')
                 st.info(f"**{name}** | Roll: {roll}")
                 c1,c2 = st.columns(2)
                 c1.write(f"Father: {father}")
@@ -590,7 +507,7 @@ elif menu == "Student Records":
             else: st.warning("Not found.")
 
 # =============================
-# 15. EDIT STUDENT DETAILS (Dynamic, handles missing columns)
+# 15. EDIT STUDENT DETAILS
 # =============================
 elif menu == "Edit Student Details":
     st.subheader(f"Edit Student – {selected_class}")
@@ -606,25 +523,23 @@ elif menu == "Edit Student Details":
                 rd = master_sheet.row_values(rn)
                 hd = [h.strip() for h in master_sheet.row_values(1)]
 
-                def fc(n):   # find column
+                def fc(n):
                     for i,h in enumerate(hd):
                         if h.upper() == n.upper(): return i
                     return None
 
-                # Safely get existing values
                 def gv(col): return rd[col] if col is not None and col < len(rd) else ""
 
                 cid = fc('ID') or fc('STUDENT ID')
                 cname = fc('NAME')
                 cfather = fc('FATHER') or fc('FATHER NAME')
                 cmobile = fc('MOBILE')
-                caddress = fc('ADDRESS')  # might not exist
+                caddress = fc('ADDRESS')
                 caadhar = fc('AADHAR') or fc('AADHAAR')
                 if caddress is None:
-                    # add Address column if not present
-                    master_sheet.update_cell(1, len(hd)+1, 'Address')
+                    master_sheet.update_cell(1, len(hd)+1, 'ADDRESS')
                     st.cache_data.clear()
-                    hd.append('Address')
+                    hd.append('ADDRESS')
                     caddress = len(hd)-1
 
                 current_name = gv(cname)
@@ -659,16 +574,16 @@ elif menu == "Add New Student":
     existing_rolls = []
     if not df_master.empty and id_col:
         existing_ids = df_master[id_col].astype(str).tolist()
-        if 'Roll No' in df_master.columns:
-            try: existing_rolls = df_master['Roll No'].astype(int).tolist()
+        if 'ROLL NO' in df_master.columns:
+            try: existing_rolls = df_master['ROLL NO'].astype(int).tolist()
             except: pass
-    prefix = f"CME0"
+    prefix = "CME"
     max_s = 0
     for sid in existing_ids:
-        if sid.startswith("CME"):
-            num = sid[3:]
+        if sid.startswith(prefix):
+            num = sid[len(prefix):]
             if num.isdigit(): max_s = max(max_s, int(num))
-    new_id = f"CME{max_s+1:02d}"
+    new_id = f"{prefix}{max_s+1:02d}"
     new_roll = 1 if not existing_rolls else max(existing_rolls)+1
 
     with st.form("add_student_form", clear_on_submit=True):
@@ -683,37 +598,30 @@ elif menu == "Add New Student":
             if not nn.strip() or not nf.strip():
                 st.error("Name and Father required.")
             else:
-                # Prepare row according to existing headers + ensure Total_Fees, Address
                 headers = master_sheet.row_values(1)
-                row_data = [""]*(len(headers)+3)  # buffer
                 def put(col_name, value):
                     if col_name in headers:
-                        row_data[headers.index(col_name)] = value
+                        return headers.index(col_name), value
                     else:
-                        # add column at end
                         master_sheet.update_cell(1, len(headers)+1, col_name)
                         st.cache_data.clear()
                         headers.append(col_name)
-                        row_data.append(value)
-                put("ID", new_id)
-                put("NAME", nn.strip())
-                put("ROLL NO", str(new_roll))
-                put("FATHER", nf.strip())
-                put("MOBILE", nm.strip() if nm else "")
-                put("ADDRESS", na.strip() if na else "")
-                put("AADHAR", nd.strip() if nd else "")
-                put("Total_Fees", "0")
-                # Ensure NODE exists for blank
-                if "NODE" not in headers:
-                    master_sheet.update_cell(1, len(headers)+1, "NODE")
-                    headers.append("NODE")
-                # build final row (match column order)
-                final_row = []
-                for h in headers:
-                    if h in ["ID","NAME","ROLL NO","FATHER","NODE","MOBILE","Total_Fees","ADDRESS","AADHAR"]:
-                        final_row.append(row_data[headers.index(h)] if h in headers else "")
-                    else:
-                        final_row.append("")
+                        return len(headers)-1, value
+                row_data = {}
+                row_data['ID'] = new_id
+                row_data['NAME'] = nn.strip()
+                row_data['ROLL NO'] = str(new_roll)
+                row_data['FATHER'] = nf.strip()
+                row_data['NODE'] = ""
+                row_data['MOBILE'] = nm.strip() if nm else ""
+                row_data['Total_Fees'] = "0"
+                row_data['ADDRESS'] = na.strip() if na else ""
+                row_data['AADHAR'] = nd.strip() if nd else ""
+                for col in ['ID','NAME','ROLL NO','FATHER','NODE','MOBILE','Total_Fees','ADDRESS','AADHAR']:
+                    if col not in headers:
+                        master_sheet.update_cell(1, len(headers)+1, col)
+                        headers.append(col)
+                final_row = [row_data.get(h, "") for h in headers]
                 master_sheet.append_row(final_row, value_input_option='USER_ENTERED')
                 attendance_sheet.append_row([new_id])
                 st.success(f"Enrolled {nn}")
