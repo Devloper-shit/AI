@@ -13,6 +13,87 @@ import json
 # -----------------------------
 st.set_page_config(page_title="Cambridge Portal", page_icon="🏫", layout="wide")
 
+# =====================================================================
+# DARK NAVY THEME – Clean & Professional
+# =====================================================================
+st.markdown("""
+<style>
+/* ========== Global Background ========== */
+body {
+    background-color: #0a1628;
+    color: #e0e7f2;
+}
+.main {
+    background-color: transparent;
+}
+/* ========== Sidebar ========== */
+section[data-testid="stSidebar"] {
+    background-color: #0f1f3a;
+    border-right: 2px solid #1e3d6e;
+}
+section[data-testid="stSidebar"] * {
+    color: #cbd5e1 !important;
+}
+/* ========== Cards ========== */
+div[data-testid="stVerticalBlock"] > div {
+    background: #112240;
+    border-radius: 10px;
+    border: 1px solid #1e3d6e;
+    padding: 20px;
+    margin-bottom: 16px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+/* ========== Buttons ========== */
+.stButton > button {
+    background-color: #1a3b5d;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 20px;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+.stButton > button:hover {
+    background-color: #2c5282;
+    box-shadow: 0 0 8px rgba(44,82,130,0.4);
+}
+/* ========== Inputs ========== */
+.stTextInput input, .stNumberInput input, .stSelectbox select {
+    background-color: #1a2744 !important;
+    border: 1px solid #2d4373;
+    border-radius: 6px;
+    color: #e2e8f0 !important;
+    padding: 8px 12px;
+}
+/* ========== Tables ========== */
+.stTable tbody tr:nth-child(odd) {
+    background-color: #1a2744;
+}
+.stTable tbody tr:nth-child(even) {
+    background-color: #0f1f3a;
+}
+.stTable tbody tr:hover {
+    background-color: #243b5e;
+}
+/* ========== Metric Cards ========== */
+[data-testid="metric-container"] {
+    background: #112240;
+    border: 1px solid #1e3d6e;
+    border-radius: 10px;
+    padding: 16px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+[data-testid="metric-container"] label {
+    color: #94a3b8;
+    font-size: 13px;
+}
+[data-testid="metric-container"] div[data-testid="stMetricValue"] {
+    color: #f0c45a;
+    font-weight: 700;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # -----------------------------
 # 2. LOGIN
 # -----------------------------
@@ -24,7 +105,7 @@ if not st.session_state["authenticated"]:
     _, center, _ = st.columns([1, 2, 1])
     with center:
         st.markdown("<br><br>", unsafe_allow_html=True)
-        st.markdown("<h2 style='text-align:center; color:#1a3b5d;'>Cambridge International</h2>", unsafe_allow_html=True)
+        st.markdown("<h2 style='text-align:center; color:#f0c45a;'>Cambridge International</h2>", unsafe_allow_html=True)
         role = st.selectbox("Select Role", ["Teacher", "Clerk", "Principal"])
         pwd = st.text_input("Password", type="password")
         if st.button("Login"):
@@ -41,7 +122,7 @@ if not st.session_state["authenticated"]:
     st.stop()
 
 # -----------------------------
-# 3. DATABASE CONNECTION (SECRETS ONLY)
+# 3. DATABASE CONNECTION (Secrets only)
 # -----------------------------
 SHEET_ID = "1-U9d-zMbo7g6_qoQY_trLkZNRpwTK1Em7Q982Hmx5RA"
 
@@ -49,7 +130,7 @@ SHEET_ID = "1-U9d-zMbo7g6_qoQY_trLkZNRpwTK1Em7Q982Hmx5RA"
 def get_workbook():
     try:
         if "gcp_creds" not in st.secrets:
-            st.error("❌ Streamlit Secrets missing 'gcp_creds' string.")
+            st.error("❌ Streamlit Secrets missing 'gcp_creds'.")
             return None
         creds_dict = json.loads(st.secrets["gcp_creds"])
         scope = [
@@ -99,7 +180,7 @@ def load_master_data(class_name):
     if len(raw) < 2: return pd.DataFrame(), []
     headers = [h.strip() for h in raw[0]]
     df = pd.DataFrame(raw[1:], columns=headers)
-    id_col = next((c for c in df.columns if c.upper() in ['ID', 'STUDENT ID', 'STUDENT_ID']), None)
+    id_col = next((c for c in df.columns if c.upper() in ['ID', 'STUDENT ID']), None)
     name_col = next((c for c in df.columns if c.upper() in ['NAME', 'STUDENT NAME']), None)
     student_list = []
     if id_col and name_col:
@@ -157,10 +238,10 @@ with st.sidebar:
     menu = option_menu(None, menu_options, [icons.get(o,"circle") for o in menu_options],
         menu_icon="cast", default_index=0,
         styles={
-            "container": {"background-color": "#0f172a"},
+            "container": {"background-color": "#0f1f3a"},
             "icon": {"color": "#fbbf24"},
-            "nav-link": {"--hover-color": "#1e293b", "color": "#e2e8f0"},
-            "nav-link-selected": {"background-color": "#1e3a5f"},
+            "nav-link": {"--hover-color": "#1e2746"},
+            "nav-link-selected": {"background-color": "#1e3d6e"},
         }
     )
 
@@ -201,7 +282,7 @@ ensure_column(master_sheet, "Total_Fees")
 # -----------------------------
 # 7. BRANDING
 # -----------------------------
-st.markdown("<h2 style='text-align:center; color:#1a3b5d;'>CAMBRIDGE INTERNATIONAL</h2>", unsafe_allow_html=True)
+st.markdown("<h2 style='text-align:center; color:#f0c45a;'>CAMBRIDGE INTERNATIONAL</h2>", unsafe_allow_html=True)
 st.divider()
 
 # =============================
@@ -530,7 +611,6 @@ elif menu == "Edit Student Details":
 
                 def gv(col): return rd[col] if col is not None and col < len(rd) else ""
 
-                cid = fc('ID') or fc('STUDENT ID')
                 cname = fc('NAME')
                 cfather = fc('FATHER') or fc('FATHER NAME')
                 cmobile = fc('MOBILE')
@@ -599,14 +679,6 @@ elif menu == "Add New Student":
                 st.error("Name and Father required.")
             else:
                 headers = master_sheet.row_values(1)
-                def put(col_name, value):
-                    if col_name in headers:
-                        return headers.index(col_name), value
-                    else:
-                        master_sheet.update_cell(1, len(headers)+1, col_name)
-                        st.cache_data.clear()
-                        headers.append(col_name)
-                        return len(headers)-1, value
                 row_data = {}
                 row_data['ID'] = new_id
                 row_data['NAME'] = nn.strip()
