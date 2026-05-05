@@ -5,7 +5,6 @@ from datetime import datetime, timedelta
 import pandas as pd
 import traceback
 import io
-from streamlit_option_menu import option_menu
 import json
 
 # -----------------------------
@@ -91,6 +90,34 @@ div[data-testid="stVerticalBlock"] > div {
     color: #f0c45a;
     font-weight: 700;
 }
+/* ========== Radio Buttons in Sidebar ========== */
+.stRadio div[role="radiogroup"] label {
+    color: #e0e7f2 !important;
+    font-size: 14px;
+    padding: 4px 0;
+}
+/* ========== Receipt Card ========== */
+.receipt-card {
+    background: #1e2a3a;
+    border: 1px dashed #f0c45a;
+    border-radius: 12px;
+    padding: 20px;
+    margin-top: 20px;
+}
+.receipt-card h3 {
+    color: #f0c45a;
+    text-align: center;
+    margin-bottom: 15px;
+}
+.receipt-card p {
+    font-size: 16px;
+    margin: 5px 0;
+}
+.receipt-card .total {
+    font-size: 20px;
+    font-weight: bold;
+    color: #f0c45a;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -122,7 +149,7 @@ if not st.session_state["authenticated"]:
     st.stop()
 
 # -----------------------------
-# 3. DATABASE CONNECTION (Secrets only)
+# 3. DATABASE CONNECTION
 # -----------------------------
 SHEET_ID = "1-U9d-zMbo7g6_qoQY_trLkZNRpwTK1Em7Q982Hmx5RA"
 
@@ -224,26 +251,11 @@ with st.sidebar:
     if role == "Teacher":
         menu_options = ["Student Attendance", "Attendance Report", "Student Records", "Edit Student Details", "Add New Student", "At-Risk Students"]
     elif role == "Clerk":
-        menu_options = ["Fee Collection", "Daily Cash Report", "Defaulter List", "Add New Student", "Student Records"]
+        menu_options = ["Fee Collection", "Daily Cash Report", "Defaulter List", "Add New Student", "Student Records", "Edit Student Details"]
     else:
         menu_options = ["Executive Dashboard", "Student Attendance", "Attendance Report", "Fee Collection", "Daily Cash Report", "Defaulter List", "Student Records", "Edit Student Details", "Add New Student", "At-Risk Students"]
 
-    icons = {
-        "Executive Dashboard": "speedometer2", "Student Attendance": "calendar-check",
-        "Attendance Report": "bar-chart-line", "Fee Collection": "cash-stack",
-        "Daily Cash Report": "graph-up-arrow", "Defaulter List": "exclamation-triangle",
-        "Student Records": "people", "Edit Student Details": "pencil-square",
-        "Add New Student": "person-plus", "At-Risk Students": "exclamation-circle"
-    }
-    menu = option_menu(None, menu_options, [icons.get(o,"circle") for o in menu_options],
-        menu_icon="cast", default_index=0,
-        styles={
-            "container": {"background-color": "#0f1f3a"},
-            "icon": {"color": "#fbbf24"},
-            "nav-link": {"--hover-color": "#1e2746"},
-            "nav-link-selected": {"background-color": "#1e3d6e"},
-        }
-    )
+    menu = st.radio("Navigation", menu_options, label_visibility="collapsed")
 
     if st.button("Logout"):
         st.session_state.clear()
@@ -271,6 +283,7 @@ if not all([master_sheet, attendance_sheet, fees_sheet]):
     st.error("Required sheets missing.")
     st.stop()
 
+# Ensure essential columns exist in Master
 def ensure_column(sheet, col_name):
     headers = sheet.row_values(1)
     if col_name not in headers:
@@ -278,6 +291,8 @@ def ensure_column(sheet, col_name):
         st.cache_data.clear()
 
 ensure_column(master_sheet, "Total_Fees")
+ensure_column(master_sheet, "Annual_Fees")
+ensure_column(master_sheet, "Admission_Fees")
 
 # -----------------------------
 # 7. BRANDING
@@ -456,7 +471,7 @@ elif menu == "Attendance Report":
             st.download_button("Download Excel", buf.getvalue(), f"Attendance_{selected_class}_{sel_month}_{sel_year}.xlsx")
 
 # =============================
-# 11. FEE COLLECTION (Clerk, Principal)
+# 11. FEE COLLECTION (with Receipt)
 # =============================
 elif menu == "Fee Collection":
     if role not in ["Clerk","Principal"]:
@@ -473,18 +488,61 @@ elif menu == "Fee Collection":
                 mr = master_sheet.row_values(mc.row)
                 cur = 0
                 if len(mr) >= 7 and str(mr[6]).isdigit(): cur = int(mr[6])
-                st.info(f"**Student:** {mr[1]} | **Paid:** ₹{cur}")
-                with st.form("fee_form", clear_on_submit=True):
+                # Get additional fees if columns exist
+                annual = 0
+                admission = 0
+                heads = [h.strip() for h in master_sheet.row_values(1)]
+                if 'Annual_Fees' in heads:
+                    annual_col = heads.index('Annual_Fees')
+                    if annual_col < len(mr) and str(mr[annual_col]).isdigit(): annual = int(mr[annual_col])
+                if 'Admission_Fees' in heads:
+                    adm_col = heads.index('Admission_Fees')
+                    if adm_col < len(mr) and str(mr[adm_col]).isdigit(): admission = int(mr[adm_col])
+                st.info(f"**Student:** {mr[1]} | **Total Paid:** ₹{cur} | Annual Fees: ₹{annual} | Admission Fees: ₹{admission}")
+                with st.form("fee_form", clear_on_submit=False):
+                    fee_type = st.selectbox("Fee Type", ["Monthly Fee", "Annual Fee", "Admission Fee"])
                     amt = st.number_input("Amount", min_value=0)
                     mo = st.selectbox("Month", ["April","May","June","July","August","September","October","November","December","January","February","March"])
-                    mode = st.selectbox("Mode", ["Cash","Online","Cheque"])
-                    if st.form_submit_button("Process Payment"):
+                    mode = st.selectbox("Payment Mode", ["Cash", "Online", "Cheque"])
+                    submitted = st.form_submit_button("Process Payment")
+                    if submitted:
                         new = cur + amt
                         master_sheet.update_cell(mc.row, 7, str(new))
+                        # Also update specific fee column if needed
+                        if fee_type == "Annual Fee":
+                            # Update Annual_Fees column (add to it)
+                            if 'Annual_Fees' in heads:
+                                new_annual = annual + amt
+                                master_sheet.update_cell(mc.row, heads.index('Annual_Fees')+1, str(new_annual))
+                        elif fee_type == "Admission Fee":
+                            if 'Admission_Fees' in heads:
+                                new_adm = admission + amt
+                                master_sheet.update_cell(mc.row, heads.index('Admission_Fees')+1, str(new_adm))
                         ts = datetime.now().strftime("%d-%m-%Y %H:%M")
-                        fees_sheet.insert_row([sid, amt, mo, f"{ts} {mode}"], index=2)
-                        st.success(f"Paid ₹{amt}, New Total ₹{new}")
+                        # Insert into fees sheet with Fee Type column (ensure column exists)
+                        fees_headers = fees_sheet.row_values(1)
+                        if "Fee Type" not in fees_headers:
+                            fees_sheet.update_cell(1, len(fees_headers)+1, "Fee Type")
+                            fees_headers.append("Fee Type")
+                        fees_sheet.insert_row([sid, amt, mo, f"{ts} {mode}", fee_type], index=2)
+                        st.success(f"Paid ₹{amt} ({fee_type})")
                         st.cache_data.clear()
+                        # ---- RECEIPT CARD ----
+                        st.markdown(f"""
+                        <div class="receipt-card">
+                            <h3>PAYMENT RECEIPT</h3>
+                            <p><strong>Receipt No:</strong> RCP-{int(datetime.timestamp(datetime.now()))}</p>
+                            <p><strong>Date:</strong> {datetime.now().strftime("%d-%m-%Y %H:%M")}</p>
+                            <p><strong>Student ID:</strong> {sid}</p>
+                            <p><strong>Student Name:</strong> {mr[1]}</p>
+                            <p><strong>Fee Type:</strong> {fee_type}</p>
+                            <p><strong>Amount Paid:</strong> ₹{amt}</p>
+                            <p><strong>Payment Mode:</strong> {mode}</p>
+                            <p><strong>Month:</strong> {mo}</p>
+                            <p class="total"><strong>New Total Paid:</strong> ₹{new}</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        st.button("Print Receipt", on_click=lambda: st.components.v1.html("<script>window.print()</script>"))
             except Exception as e: st.error(f"Error: {e}")
 
 # =============================
@@ -502,7 +560,9 @@ elif menu == "Daily Cash Report":
             amt_col = fh.index('Amount') if 'Amount' in fh else 1
             total = sum(int(r[amt_col]) for r in today_rows if r[amt_col].isdigit())
             st.metric("Total Today", f"₹{total}")
-            st.dataframe(pd.DataFrame(today_rows, columns=fh)[['Student ID','Amount','Month','Date of payment']])
+            display_cols = ['Student ID','Amount','Month','Date of payment']
+            if 'Fee Type' in fh: display_cols.append('Fee Type')
+            st.dataframe(pd.DataFrame(today_rows, columns=fh)[display_cols])
         else: st.info("No transactions today.")
     else: st.info("No fee records.")
 
@@ -564,12 +624,16 @@ elif menu == "Student Records":
                 father = sd.get('FATHER','') or sd.get('FATHER NAME','')
                 mobile = sd.get('MOBILE','')
                 total = sd.get('Total_Fees','0')
+                annual = sd.get('Annual_Fees','0')
+                admission = sd.get('Admission_Fees','0')
                 addr = sd.get('ADDRESS','N/A')
                 st.info(f"**{name}** | Roll: {roll}")
                 c1,c2 = st.columns(2)
                 c1.write(f"Father: {father}")
                 c1.write(f"Mobile: {mobile}")
-                c2.write(f"Fees Paid: ₹{total}")
+                c1.write(f"Annual Fees: ₹{annual}")
+                c1.write(f"Admission Fees: ₹{admission}")
+                c2.write(f"Total Fees Paid: ₹{total}")
                 c2.write(f"Address: {addr}")
                 st.divider()
                 st.subheader("Fee History")
@@ -588,7 +652,7 @@ elif menu == "Student Records":
             else: st.warning("Not found.")
 
 # =============================
-# 15. EDIT STUDENT DETAILS
+# 15. EDIT STUDENT DETAILS (now includes Annual_Fees, Admission_Fees)
 # =============================
 elif menu == "Edit Student Details":
     st.subheader(f"Edit Student – {selected_class}")
@@ -616,17 +680,31 @@ elif menu == "Edit Student Details":
                 cmobile = fc('MOBILE')
                 caddress = fc('ADDRESS')
                 caadhar = fc('AADHAR') or fc('AADHAAR')
+                cannual = fc('ANNUAL_FEES')
+                cadm = fc('ADMISSION_FEES')
                 if caddress is None:
                     master_sheet.update_cell(1, len(hd)+1, 'ADDRESS')
                     st.cache_data.clear()
                     hd.append('ADDRESS')
                     caddress = len(hd)-1
+                if cannual is None:
+                    master_sheet.update_cell(1, len(hd)+1, 'Annual_Fees')
+                    st.cache_data.clear()
+                    hd.append('Annual_Fees')
+                    cannual = len(hd)-1
+                if cadm is None:
+                    master_sheet.update_cell(1, len(hd)+1, 'Admission_Fees')
+                    st.cache_data.clear()
+                    hd.append('Admission_Fees')
+                    cadm = len(hd)-1
 
                 current_name = gv(cname)
                 current_father = gv(cfather)
                 current_mobile = gv(cmobile)
                 current_address = gv(caddress)
                 current_aadhaar = gv(caadhar) if caadhar else ""
+                current_annual = gv(cannual) if cannual else "0"
+                current_adm = gv(cadm) if cadm else "0"
 
                 st.info(f"**ID:** {sid}")
                 with st.form("edit_form"):
@@ -635,18 +713,22 @@ elif menu == "Edit Student Details":
                     nm = st.text_input("Mobile", value=current_mobile)
                     na = st.text_input("Address", value=current_address)
                     nd = st.text_input("Aadhaar", value=current_aadhaar)
+                    nannual = st.number_input("Annual Fees", value=int(current_annual) if current_annual.isdigit() else 0)
+                    nadm = st.number_input("Admission Fees", value=int(current_adm) if current_adm.isdigit() else 0)
                     if st.form_submit_button("Update"):
                         if cname: master_sheet.update_cell(rn, cname+1, nn)
                         if cfather: master_sheet.update_cell(rn, cfather+1, nf)
                         if cmobile: master_sheet.update_cell(rn, cmobile+1, nm)
                         master_sheet.update_cell(rn, caddress+1, na)
                         if caadhar: master_sheet.update_cell(rn, caadhar+1, nd)
+                        master_sheet.update_cell(rn, cannual+1, str(nannual))
+                        master_sheet.update_cell(rn, cadm+1, str(nadm))
                         st.success("Updated!")
                         st.cache_data.clear()
             except Exception as e: st.error(f"Error: {e}")
 
 # =============================
-# 16. ADD NEW STUDENT
+# 16. ADD NEW STUDENT (includes Annual & Admission Fees)
 # =============================
 elif menu == "Add New Student":
     st.subheader(f"Enroll New Student – {selected_class}")
@@ -674,6 +756,8 @@ elif menu == "Add New Student":
         nm = st.text_input("Mobile")
         na = st.text_input("Address")
         nd = st.text_input("Aadhaar")
+        nannual = st.number_input("Annual Fees", value=0)
+        nadm = st.number_input("Admission Fees", value=0)
         if st.form_submit_button("Enroll"):
             if not nn.strip() or not nf.strip():
                 st.error("Name and Father required.")
@@ -687,9 +771,11 @@ elif menu == "Add New Student":
                 row_data['NODE'] = ""
                 row_data['MOBILE'] = nm.strip() if nm else ""
                 row_data['Total_Fees'] = "0"
+                row_data['Annual_Fees'] = str(nannual)
+                row_data['Admission_Fees'] = str(nadm)
                 row_data['ADDRESS'] = na.strip() if na else ""
                 row_data['AADHAR'] = nd.strip() if nd else ""
-                for col in ['ID','NAME','ROLL NO','FATHER','NODE','MOBILE','Total_Fees','ADDRESS','AADHAR']:
+                for col in ['ID','NAME','ROLL NO','FATHER','NODE','MOBILE','Total_Fees','Annual_Fees','Admission_Fees','ADDRESS','AADHAR']:
                     if col not in headers:
                         master_sheet.update_cell(1, len(headers)+1, col)
                         headers.append(col)
