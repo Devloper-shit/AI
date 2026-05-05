@@ -7,7 +7,6 @@ import traceback
 import io
 import json
 import base64
-from streamlit_option_menu import option_menu
 
 # -----------------------------
 # 1. CONFIGURATION
@@ -15,115 +14,29 @@ from streamlit_option_menu import option_menu
 st.set_page_config(page_title="Cambridge Portal", page_icon="🏫", layout="wide")
 
 # =====================================================================
-# GLASSMORPHISM + ANIMATIONS UI (from first code)
+# DARK NAVY THEME
 # =====================================================================
 st.markdown("""
 <style>
-/* ---------- Glass Cards ---------- */
-div[data-testid="stVerticalBlock"] > div {
-    background: rgba(30, 41, 59, 0.65);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 18px;
-    padding: 24px;
-    margin-bottom: 20px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-}
-
-/* ---------- Buttons ---------- */
-.stButton > button {
-    border-radius: 12px;
-    background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
-    border: none;
-    color: white;
-    font-weight: 600;
-    letter-spacing: 0.5px;
-    transition: all 0.3s ease;
-    padding: 10px 24px;
-}
-.stButton > button:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 12px 24px rgba(0,0,0,0.4);
-    background: linear-gradient(135deg, #2d5a87 0%, #1e3a5f 100%);
-}
-
-/* ---------- Sidebar ---------- */
-section[data-testid="stSidebar"] {
-    background-color: #0f172a;
-    border-right: 1px solid #1e293b;
-    transition: width 0.3s ease;
-}
-section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] label {
-    color: #e2e8f0;
-}
-section[data-testid="stSidebar"] .stSelectbox label {
-    color: #e2e8f0 !important;
-}
-
-/* ---------- Input Fields ---------- */
-.stTextInput input, .stNumberInput input, .stSelectbox select {
-    background-color: #1e293b !important;
-    border: 1px solid #334155 !important;
-    border-radius: 10px !important;
-    color: white !important;
-}
-
-/* ---------- Tables ---------- */
-.stTable tbody tr:nth-child(even) {
-    background-color: rgba(30, 41, 59, 0.5);
-}
-.stTable tbody tr:hover, [data-testid="stTable"] tbody tr:hover {
-    background-color: rgba(30, 64, 95, 0.3) !important;
-    transition: background-color 0.2s ease;
-}
-
-/* ---------- Metric Cards ---------- */
-[data-testid="metric-container"] {
-    background: linear-gradient(145deg, #1e293b, #0f172a);
-    border-radius: 20px;
-    border: 1px solid #334155;
-    padding: 20px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-}
-[data-testid="metric-container"] label {
-    color: #94a3b8 !important;
-    font-size: 13px;
-    font-weight: 500;
-}
-[data-testid="metric-container"] div[data-testid="stMetricValue"] {
-    font-size: 34px !important;
-    font-weight: 800;
-    color: #fbbf24 !important;
-}
-
-/* ---------- Fade-in Animation ---------- */
-.main > div:first-child {
-    animation: fadeIn 0.6s ease;
-}
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-/* ---------- Receipt Card ---------- */
-.receipt-card {
-    background: #1e2a3a;
-    border: 1px dashed #f0c45a;
-    border-radius: 12px;
-    padding: 20px;
-    margin: 20px 0;
-}
-.receipt-card h3 {
-    color: #f0c45a;
-    text-align: center;
-    margin-bottom: 15px;
-}
-.receipt-card p {
-    font-size: 16px;
-    margin: 5px 0;
-    color: #e0e7f2;
-}
+body { background-color: #0a1628; color: #e0e7f2; }
+.main { background-color: transparent; }
+section[data-testid="stSidebar"] { background-color: #0f1f3a; border-right: 2px solid #1e3d6e; }
+section[data-testid="stSidebar"] * { color: #cbd5e1 !important; }
+div[data-testid="stVerticalBlock"] > div { background: #112240; border-radius: 10px; border: 1px solid #1e3d6e; padding: 20px; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+.stButton > button { background-color: #1a3b5d; color: white; border: none; border-radius: 6px; padding: 8px 20px; font-weight: 600; }
+.stButton > button:hover { background-color: #2c5282; box-shadow: 0 0 8px rgba(44,82,130,0.4); }
+.stTextInput input, .stNumberInput input, .stSelectbox select { background-color: #1a2744 !important; border: 1px solid #2d4373; border-radius: 6px; color: #e2e8f0 !important; padding: 8px 12px; }
+.stTable tbody tr:nth-child(odd) { background-color: #1a2744; }
+.stTable tbody tr:nth-child(even) { background-color: #0f1f3a; }
+.stTable tbody tr:hover { background-color: #243b5e; }
+[data-testid="metric-container"] { background: #112240; border: 1px solid #1e3d6e; border-radius: 10px; padding: 16px; box-shadow: 0 2px 6px rgba(0,0,0,0.3); }
+[data-testid="metric-container"] label { color: #94a3b8; font-size: 13px; }
+[data-testid="metric-container"] div[data-testid="stMetricValue"] { color: #f0c45a; font-weight: 700; }
+.stRadio div[role="radiogroup"] label { color: #e0e7f2 !important; font-size: 14px; padding: 4px 0; }
+.receipt-card { background: #1e2a3a; border: 1px dashed #f0c45a; border-radius: 12px; padding: 20px; margin: 20px 0; }
+.receipt-card h3 { color: #f0c45a; text-align: center; margin-bottom: 15px; }
+.receipt-card p { font-size: 16px; margin: 5px 0; }
+.receipt-card .total { font-size: 20px; font-weight: bold; color: #f0c45a; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -135,42 +48,23 @@ if "authenticated" not in st.session_state:
     st.session_state["role"] = None
 
 if not st.session_state["authenticated"]:
-    st.markdown("""
-    <style>
-    .login-card {
-        background: rgba(30, 41, 59, 0.7);
-        backdrop-filter: blur(15px);
-        border: 1px solid rgba(255,255,255,0.1);
-        border-radius: 24px;
-        padding: 40px;
-        max-width: 400px;
-        margin: 80px auto;
-        box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-        text-align: center;
-    }
-    .login-card h2 {
-        color: #fbbf24;
-        margin-bottom: 30px;
-    }
-    </style>
-    <div class="login-card">
-    """, unsafe_allow_html=True)
-
-    st.markdown("<h2>Cambridge International</h2>", unsafe_allow_html=True)
-    role = st.selectbox("Select Role", ["Teacher", "Clerk", "Principal"])
-    pwd = st.text_input("Password", type="password")
-    if st.button("Login"):
-        valid = False
-        if role == "Teacher" and pwd == "TCH2024": valid = True
-        elif role == "Clerk" and pwd == "CLK2024": valid = True
-        elif role == "Principal" and pwd == "PRN2024": valid = True
-        if valid:
-            st.session_state["authenticated"] = True
-            st.session_state["role"] = role
-            st.rerun()
-        else:
-            st.error("Invalid credentials")
-    st.markdown("</div>", unsafe_allow_html=True)
+    _, center, _ = st.columns([1,2,1])
+    with center:
+        st.markdown("<br><br>", unsafe_allow_html=True)
+        st.markdown("<h2 style='text-align:center; color:#f0c45a;'>Cambridge International</h2>", unsafe_allow_html=True)
+        role = st.selectbox("Select Role", ["Teacher", "Clerk", "Principal"])
+        pwd = st.text_input("Password", type="password")
+        if st.button("Login"):
+            valid = False
+            if role == "Teacher" and pwd == "TCH2024": valid = True
+            elif role == "Clerk" and pwd == "CLK2024": valid = True
+            elif role == "Principal" and pwd == "PRN2024": valid = True
+            if valid:
+                st.session_state["authenticated"] = True
+                st.session_state["role"] = role
+                st.rerun()
+            else:
+                st.error("Invalid credentials")
     st.stop()
 
 # -----------------------------
@@ -263,7 +157,7 @@ def load_fee_structure():
     return fee_map
 
 # -----------------------------
-# 5. SIDEBAR WITH OPTION MENU
+# 5. SIDEBAR
 # -----------------------------
 with st.sidebar:
     st.header("Administration")
@@ -279,21 +173,7 @@ with st.sidebar:
     else:
         menu_options = ["Executive Dashboard","Student Attendance","Attendance Report","Fee Collection","Daily Cash Report","Defaulter List","Student Records","Edit Student Details","Add New Student","At-Risk Students"]
 
-    icons = {
-        "Executive Dashboard": "speedometer2","Student Attendance": "calendar-check","Attendance Report": "bar-chart-line",
-        "Fee Collection": "cash-stack","Daily Cash Report": "graph-up-arrow","Defaulter List": "exclamation-triangle",
-        "Student Records": "people","Edit Student Details": "pencil-square","Add New Student": "person-plus",
-        "At-Risk Students": "exclamation-circle"
-    }
-    menu = option_menu(None, menu_options, [icons.get(o,"circle") for o in menu_options],
-        menu_icon="cast", default_index=0,
-        styles={
-            "container": {"padding": "0!important", "background-color": "#0f172a"},
-            "icon": {"color": "#fbbf24", "font-size": "16px"},
-            "nav-link": {"font-size": "14px","text-align": "left","margin": "0px","--hover-color": "#1e293b","color": "#e2e8f0"},
-            "nav-link-selected": {"background-color": "#1e3a5f", "color": "white"},
-        }
-    )
+    menu = st.radio("Navigation", menu_options, label_visibility="collapsed")
 
     if st.button("Logout"):
         st.session_state.clear()
@@ -321,7 +201,7 @@ if not all([master_sheet, attendance_sheet, fees_sheet]):
     st.error("Required sheets missing.")
     st.stop()
 
-# Ensure Annual_Fees and Admission_Fees columns exist in Master (no Total_Fees)
+# Ensure Annual_Fees and Admission_Fees columns exist (no Total_Fees)
 def ensure_column(sheet, col_name):
     headers = sheet.row_values(1)
     if col_name not in headers:
@@ -331,11 +211,11 @@ def ensure_column(sheet, col_name):
 ensure_column(master_sheet, "Annual_Fees")
 ensure_column(master_sheet, "Admission_Fees")
 
-# Helper to compute total paid from FEES sheet
-def compute_paid_total(sid, all_fees):
+# Helper to compute paid total from FEES sheet
+def compute_paid_total(sid, fees_data):
     total = 0
-    if all_fees and len(all_fees)>1:
-        for row in all_fees[1:]:
+    if fees_data and len(fees_data)>1:
+        for row in fees_data[1:]:
             if row[0].strip().upper() == sid.upper() and row[1].isdigit():
                 total += int(row[1])
     return total
@@ -394,12 +274,13 @@ if menu == "Executive Dashboard" and role == "Principal":
         col3.metric("Today Fees", f"₹{today_fees}")
         col4.metric("Month Fees", f"₹{month_col} ({col_pct:.0f}%)")
 
-        # Top 5 Outstanding (using new logic)
+        # Top 5 Defaulters (outstanding = expected - paid)
         if not df_master.empty:
             outstanding_list = []
             for _, student in df_master.iterrows():
                 sid = str(student[id_col])
                 name = student[name_col] if name_col else ""
+                # Expected = monthly fee for months from April to now, plus Annual_Fees, plus Admission_Fees
                 if current_month >= 4: months = current_month - 4 + 1
                 else: months = current_month + 9
                 expected = months * monthly_fee
@@ -422,7 +303,8 @@ if menu == "Executive Dashboard" and role == "Principal":
 # =============================
 elif menu == "Student Attendance":
     st.subheader(f"Daily Attendance – {selected_class}")
-    if not student_list: st.warning("No students.")
+    if not student_list:
+        st.warning("No students.")
     else:
         sel = st.selectbox("Select Student", ["-- Select --"] + student_list)
         c1, c2, c3 = st.columns(3)
@@ -527,11 +409,13 @@ elif menu == "Fee Collection":
     if role not in ["Clerk","Principal"]:
         st.error("Access Denied"); st.stop()
     st.subheader(f"Fee Counter – {selected_class}")
-    if not student_list: st.warning("No students.")
+    if not student_list:
+        st.warning("No students.")
     else:
         sel = st.selectbox("Select Student", ["-- Select --"]+student_list)
         if sel != "-- Select --":
             sid = sel.split(" - ")[0]
+            # Get student basic info
             mask = df_master[id_col].astype(str) == sid
             student_name = ""
             if mask.any():
@@ -548,15 +432,19 @@ elif menu == "Fee Collection":
                     if amt <= 0:
                         st.error("Amount must be > 0")
                     else:
+                        # Log into FEES sheet
                         ts = datetime.now().strftime("%d-%m-%Y %H:%M")
+                        # Ensure Fee Type column exists in fees sheet
                         fh = fees_sheet.row_values(1)
                         if "Fee Type" not in fh:
                             fees_sheet.update_cell(1, len(fh)+1, "Fee Type")
                             fh.append("Fee Type")
-                        fees_sheet.insert_row([sid, amt, mo, f"{ts} {mode}", fee_type], index=2)
+                        new_row = [sid, amt, mo, f"{ts} {mode}", fee_type]
+                        fees_sheet.insert_row(new_row, index=2)
                         st.success(f"Payment of ₹{amt} recorded ({fee_type})")
                         st.cache_data.clear()
-                        # Receipt Card (outside form)
+                        # ---- RECEIPT (outside form) ----
+                        # We use a placeholder and markdown to display it after the form
                         receipt_html = f"""
                         <div class="receipt-card">
                             <h3>PAYMENT RECEIPT</h3>
@@ -571,7 +459,7 @@ elif menu == "Fee Collection":
                         </div>
                         """
                         st.markdown(receipt_html, unsafe_allow_html=True)
-                        # Print & Download
+                        # Print & Download buttons
                         col1, col2 = st.columns(2)
                         with col1:
                             st.markdown("""
@@ -585,7 +473,7 @@ elif menu == "Fee Collection":
                             st.markdown(href, unsafe_allow_html=True)
 
 # =============================
-# 12. DAILY CASH REPORT (fixed KeyError)
+# 12. DAILY CASH REPORT
 # =============================
 elif menu == "Daily Cash Report":
     if role not in ["Clerk","Principal"]:
@@ -600,18 +488,13 @@ elif menu == "Daily Cash Report":
             total = sum(int(r[amt_col]) for r in today_rows if r[amt_col].isdigit())
             st.metric("Total Today", f"₹{total}")
             display_cols = ['Student ID','Amount','Month','Date of payment']
-            # Only append Fee Type if it exists in the header
-            if 'Fee Type' in fh:
-                display_cols.append('Fee Type')
-            # Ensure all display columns exist in the DataFrame
-            df_today = pd.DataFrame(today_rows, columns=fh)
-            available_cols = [c for c in display_cols if c in df_today.columns]
-            st.dataframe(df_today[available_cols])
+            if 'Fee Type' in fh: display_cols.append('Fee Type')
+            st.dataframe(pd.DataFrame(today_rows, columns=fh)[display_cols])
         else: st.info("No transactions today.")
     else: st.info("No fee records.")
 
 # =============================
-# 13. DEFAULTER LIST (new logic)
+# 13. DEFAULTER LIST
 # =============================
 elif menu == "Defaulter List":
     if role not in ["Clerk","Principal"]:
@@ -628,6 +511,7 @@ elif menu == "Defaulter List":
         for _, s in df_master.iterrows():
             sid = str(s[id_col])
             name = s[name_col] if name_col else ""
+            # Expected = monthly + annual + admission
             ann = int(s.get('Annual_Fees',0)) if str(s.get('Annual_Fees',0)).isdigit() else 0
             adm = int(s.get('Admission_Fees',0)) if str(s.get('Admission_Fees',0)).isdigit() else 0
             expected = expected_monthly + ann + adm
@@ -771,7 +655,8 @@ elif menu == "Edit Student Details":
 # =============================
 elif menu == "Add New Student":
     st.subheader(f"Enroll New Student – {selected_class}")
-    existing_ids = []; existing_rolls = []
+    existing_ids = []
+    existing_rolls = []
     if not df_master.empty and id_col:
         existing_ids = df_master[id_col].astype(str).tolist()
         if 'ROLL NO' in df_master.columns:
