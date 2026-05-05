@@ -120,7 +120,7 @@ if not st.session_state["authenticated"]:
 # 3. DATABASE CONNECTION
 # -----------------------------
 # ⚡ APNI SHEET ID YAHAN DAALO
-SHEET_ID = "YOUR_CAMBRIDGE_SHEET_ID"
+SHEET_ID = "d/1-U9d-zMbo7g6_qoQY_trLkZNRpwTK1Em7Q982Hmx5RA/edit?gid=0#gid=0"
 
 @st.cache_resource
 def get_workbook():
